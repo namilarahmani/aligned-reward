@@ -1,38 +1,40 @@
 import unittest
 import numpy as np
-from possible_subspace import find_feasible_weights, check_and_remove_conflicts
+from possible_subspace import find_feasible_weight_space, check_and_remove_conflicts
 from assign_preferences import assign_preferences
 
 class TestPreferenceConsistency(unittest.TestCase):
     
-    # size 1 features (number line)
+    # size 1 features (number line) -----------------------------------------------
     def test_size1_consistent_preferences(self):
+        # test consistent numberline preferences (increasing is higher reward)
         pairs = np.array([([1],[2]), ([2],[4]), ([5],[6]), ([6],[7]), ([8],[10])])
         preferences = [1,1,1,1,1]  
-        result = find_feasible_weights(pairs, preferences)
-        self.assertTrue(result.success)  
+        result = find_feasible_weight_space(pairs, preferences)
+        self.assertTrue(result)  
 
     def test_size1_inconsistent_preferences(self):
+        # inconsistent numberline (increasing is higher reward except one pref)
         pairs = np.array([([1],[2]), ([2],[4]), ([6],[4]), ([6],[7]), ([8],[10])])
         preferences = [1,1,1,1,1]  
-        result = find_feasible_weights(pairs, preferences)
-        self.assertFalse(result.success)  
+        result = find_feasible_weight_space(pairs, preferences)
+        self.assertFalse(result)  
 
         conflicts = check_and_remove_conflicts(pairs, preferences)
         self.assertTrue(conflicts.__contains__((2,)), "preference 2 is a conflict")
     
-    # size 2 features 
+    # size 2 features -----------------------------------------------------------------
     def test_consistent_preferences(self):
         pairs = np.array([([6, 0], [7, 0]), ([6, 0], [7, 1]), ([2, 0], [70000, 1])])
         preferences = [1, 0, 1]  
-        result = find_feasible_weights(pairs, preferences)
-        self.assertTrue(result.success)  
+        result = find_feasible_weight_space(pairs, preferences)
+        self.assertTrue(result)  
     
     def test_size2_inconsistent_2_preferences(self):
         pairs = np.array([([1,1],[2,2]), ([2,2],[4,3]), ([4,3], [1,1])])
         preferences = [1,1,1]  
-        result = find_feasible_weights(pairs, preferences)
-        self.assertFalse(result.success)  
+        result = find_feasible_weight_space(pairs, preferences)
+        self.assertFalse(result)  
 
         conflicts = check_and_remove_conflicts(pairs, preferences)
         self.assertTrue(conflicts.__contains__((0,)))
@@ -40,6 +42,7 @@ class TestPreferenceConsistency(unittest.TestCase):
         self.assertTrue(conflicts.__contains__((2,)))
 
     def test_larger_inconsistent_2_preferences(self):
+        # assign one preference directly conflicting w the rest
         pairs = np.array([
             ([3, 7], [4, 8]),
             ([1, 5], [2, 6]),
@@ -53,20 +56,20 @@ class TestPreferenceConsistency(unittest.TestCase):
             ([8, 2], [1, 9])
         ])
         preferences = assign_preferences(pairs, [0.2, 0.8])
-        preferences[8] = 0
-        result = find_feasible_weights(pairs, preferences)
+        preferences[8] = 0 # conflicting preference 
+        result = find_feasible_weight_space(pairs, preferences)
         conflicts = check_and_remove_conflicts(pairs, preferences)
-        self.assertFalse(result.success)  
+        self.assertFalse(result)  
         self.assertTrue(conflicts.__contains__((8,)))
 
     def test_cycle(self):
-        # Test case where the preferences are inconsistent
+        # cycle of 3 has conflict
         pairs = np.array([([1,1], [2,2]), ([2,2], [3,1]), ([3,1], [1,1])])
-        preferences = [0, 0, 0]  # These preferences may conflict
-        result = find_feasible_weights(pairs, preferences)
-        self.assertFalse(result.success)  # Expecting False since this is inconsistent
+        preferences = [0, 0, 0]  
+        result = find_feasible_weight_space(pairs, preferences)
+        self.assertFalse(result) 
         
-        # check all the options in the cycle can be removed 
+        # check all the options in the cycle can be removed
         conflicts = check_and_remove_conflicts(pairs, preferences)
         self.assertIsNotNone(conflicts, "Conflicts should not be None")
         self.assertTrue(conflicts.__contains__((0,)))
@@ -77,12 +80,13 @@ class TestPreferenceConsistency(unittest.TestCase):
         # nvm i dont think this is even a cycle that can be resolved by removing individuals though
         pairs = np.array([([5, 0], [0, 5]), ([0,5], [2.5,9.33]), ([2.5,9.33], [5,10]), ([5,10], [10,5])])
         preferences = [0, 0, 0, 0] 
-        result = find_feasible_weights(pairs, preferences)
+        result = find_feasible_weight_space(pairs, preferences)
         conflicts = check_and_remove_conflicts(pairs, preferences)
-        self.assertFalse(result.success)  
+        self.assertFalse(result)  
         self.assertIsNotNone(conflicts, "Conflicts should not be None")
 
     def test_conflict_equality(self):
+        # equal preference is conflicting with prev preferences (last conflicts with the two before it)
         pairs = np.array([
             ([7, 2], [5, 6]),
             ([1, 1], [2, 3]),
@@ -93,12 +97,13 @@ class TestPreferenceConsistency(unittest.TestCase):
         ])
         preferences = [1, 1, 1, 1, 0, -1]
         conflicts = check_and_remove_conflicts(pairs, preferences)
-        self.assertTrue(conflicts.__contains__((5,)))
         self.assertIsNotNone(conflicts, "Conflicts should not be None")
         self.assertGreaterEqual(len(conflicts), 1, "There should be at least 1 possible solutions to this conflict")
+        self.assertTrue(conflicts.__contains__((5,)))
 
-    # feature vector size 3
+    # size 3 features -----------------------------------------------------------------
     def test_size3_direct_conflict(self):
+        # direct conflict by flipping a preference
         pairs = np.array([
             ([7, 2, 0], [5, 6, 1]),
             ([1, 1, 0], [2, 3, 1]),
@@ -114,6 +119,7 @@ class TestPreferenceConsistency(unittest.TestCase):
         self.assertGreaterEqual(len(conflicts), 1, "There should be at least 1 possible solutions to this conflict")
     
     def test_size3_random_consistent(self):
+        # consistently assigned weights
         pairs = np.array([
             (np.random.randint(1, 100, size=3), np.random.randint(1, 100, size=3)),
             (np.random.randint(1, 100, size=3), np.random.randint(1, 100, size=3)),
@@ -127,15 +133,15 @@ class TestPreferenceConsistency(unittest.TestCase):
         self.assertIsNone(conflicts, "Conflicts should be None")
 
     def test_size3_inconsistent_weights(self):
+        # conflicting reward functions used to assign weights
         pairs = np.array([
             (np.random.randint(1, 100, size=3), np.random.randint(1, 100, size=3)),
             (np.random.randint(1, 100, size=3), np.random.randint(1, 100, size=3)),
-            (np.random.randint(1, 100, size=3), np.random.randint(1, 100, size=3)),
-            (np.random.randint(1, 100, size=3), np.random.randint(1, 100, size=3)),
-            (np.random.randint(1, 100, size=3), np.random.randint(1, 100, size=3)),
+            (np.random.randint(1, 100, size=3), np.random.randint(1, 100, size=3))
         ])
         preferences = assign_preferences(pairs, [0.25, 0.25, 0.5])
 
+        # generates preferences with conflicting reward weights
         conflicting_pairs = np.array([
             (np.random.randint(1, 100, size=3), np.random.randint(1, 100, size=3)),
             (np.random.randint(1, 100, size=3), np.random.randint(1, 100, size=3)),
@@ -143,7 +149,7 @@ class TestPreferenceConsistency(unittest.TestCase):
             (np.random.randint(1, 100, size=3), np.random.randint(1, 100, size=3)),
             (np.random.randint(1, 100, size=3), np.random.randint(1, 100, size=3)),
         ])
-        conflict_preferences = assign_preferences(conflicting_pairs, [0.25, -0.25, -0.5])
+        conflict_preferences = assign_preferences(conflicting_pairs, [-0.25, -0.25, -0.5])
         pairs = np.concatenate((pairs, conflicting_pairs))
         preferences = np.concatenate((preferences, conflict_preferences))
         conflicts = check_and_remove_conflicts(pairs, preferences)
