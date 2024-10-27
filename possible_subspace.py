@@ -4,8 +4,13 @@ import sys
 import pickle
 from time import time
 from itertools import combinations
+import cdd
 
 def find_feasible_weights(pairs, preferences):
+    '''
+    Representing each preference as an inequality constraint and using scipy linprog implementation to find a set of 
+    feasible weights (or identify if there are no feasible weights)
+    '''
     A_neq = []
     b_neq = []
     A_eq = []
@@ -38,11 +43,79 @@ def find_feasible_weights(pairs, preferences):
 
     return result
 
-def check_and_remove_conflicts(pairs, preferences):
-    result = find_feasible_weights(pairs, preferences)
+def find_feasible_weight_space(pairs, preferences, test_weight=None):
+    '''
+    Using pycddlib 2.1.8 double description implementation to represent feasible weight space as Polyhedron
+    docs here: https://pycddlib.readthedocs.io/en/2.1.8.post1/index.html 
+    '''
+
+    num_features = len(pairs[0][0])
+    pref_matrix = []
+    epsilon = 1e-5
+
+    # constructing inequality matrix
+    for (features_0, features_1), pref in zip(pairs, preferences):
+        delta_f = features_1 - features_0
+        
+        if pref == 0: 
+            # w · (features_1 - features_0) >= epsilon 
+            row = [-epsilon] + list(delta_f)
+            pref_matrix.append(row)
+        elif pref == 1:  
+            # w · (features_1 - features_0) <= epsilon
+            row = [-epsilon] + list(-delta_f)
+            pref_matrix.append(row)
+        elif pref == -1:  # strict equality
+            row1 = [0] + list(delta_f)
+            row2 = [0] + list(-delta_f)
+            pref_matrix.extend([row1, row2])
+
+    mat = cdd.Matrix(pref_matrix, number_type='fraction')
+    mat.rep_type = cdd.RepType.INEQUALITY
+
+    # convert to polyhedron representation
+    poly = cdd.Polyhedron(mat)
+    if poly.get_generators().row_size == 0:
+        print("no feasible space!")
+        return False  
     
-    if result.success:
-        print("we have no conflicts - the following weights are feasible to satisfy all preferences", result.x)
+    # check if test weights r in polyhedron - this is just for testing
+    if test_weight is not None:
+        inequalities = poly.get_inequalities()
+        
+        # each row of inequalities is in the form [b, -a1, -a2, ..., -an]
+        # Representing the inequality: a1*x1 + a2*x2 + ... + an*xn <= b
+        for inequality in inequalities:
+            b = inequality[0]
+            a = np.array(inequality[1:])
+            
+            # check if the inequality holds for test_weight
+            if np.dot(a, test_weight) > b:
+                raise ValueError("the feasible weight is NOT within the polyhedron defined by the preference constraints")
+                # return False
+
+        print("the test weight lies within the feasible space.")
+        return True
+    
+    print("polyhedron of feasible weightspace is", poly.get_generators())
+    return True
+
+    
+def check_and_remove_conflicts(pairs, preferences):
+    weights = find_feasible_weights(pairs, preferences)
+    weights = weights.x
+    result = find_feasible_weight_space(pairs, preferences)
+    
+    # if result.success:
+    if result:
+        print("no conflicts yay")
+        # check if weights are here
+        if weights is not None:
+            is_in_polyhedron = find_feasible_weight_space(pairs, preferences, test_weight=weights)
+            if is_in_polyhedron:
+                print("The feasible weight is within the polyhedron.")
+            else:
+                print("The feasible weight is NOT within the polyhedron.")
         return None
         
     # if conflict exists, we'll try removing subsets of 1, 2, or 3 preferences
@@ -59,10 +132,11 @@ def check_and_remove_conflicts(pairs, preferences):
             reduced_pairs = [pair for i, pair in enumerate(pairs) if i not in to_remove]
             reduced_preferences = [pref for i, pref in enumerate(preferences) if i not in to_remove]
 
-            result = find_feasible_weights(reduced_pairs, reduced_preferences)
+            result = find_feasible_weight_space(reduced_pairs, reduced_preferences)
             
-            if result.success:
-                # print(f"No feasible solution for the given preferences. Feasible solution can be found after removing preferences at indices {to_remove}.")
+            # if result.success:
+            if result:
+                print(f"No feasible solution for the given preferences. Feasible solution can be found after removing preferences at indices {to_remove}.")
                 # print(f"Weights for this solution are {result.x}")
                 conflicts.append(to_remove)
 
