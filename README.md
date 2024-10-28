@@ -7,7 +7,7 @@ Implement feedback loop for autonomous reward design with LLMs, tuning reward fu
 - **2) Find Trajectories**: currently generated randomly in `generate_sequences.py` -> in progress: will replace with active learning
 - **3) Assign Preferences to Pairs**: Can assign through set weight vector or LLM
   - Weight Vector: `python assign_preferences.py <input_file_name> <output_file_name> <optional: weights>`
-  - LLM: `python llm_assign_preferences.py <input_file_name> <output_file_name> <optional: modelname>`
+  - LLM: `python llm_assign_preferences_llama.py <input_file_name> <output_file_name> <optional: modelname>`
 - **4) Find feasible weights / detect inconsistencies**: currently weightspace is represented as convex polyhedron identified through pycddlib double description implementation and conflicts are identied through brute force combinations of up to 3 preferences in `possible_subspace.py`. Key functions are as follows:
   - `find_feasible_weights(pairs, preferences)`: represents each preference as an inequality constraint and uses scipy linprog implementation to find a feasible set of weights (or identify if there is none)
   - `find_feasible_weight_space(pairs, preferences, test_weight=None)`: represents each preference as an inequality constraint and uses pycddlib double description implementation to convert the inequality matrix to a convex polyhedron representing the feasible space of weights (or identify if there is none). If there is a feasible weight space, checks if test_weight is contained in that space.
