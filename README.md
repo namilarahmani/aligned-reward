@@ -14,3 +14,5 @@ Implement feedback loop for autonomous reward design with LLMs, tuning reward fu
   - `check_and_remove_conflicts(pairs, preferences)`: Checks if feasible space exists then brute force identifies conflicts of up to 3 preferences.
 - **5) Remove conflicts**: present conflicts to LLM stakeholder for resolution (or possibly consider addition of features to explain the conflicts)
   - to-do
+ 
+*Note: can use `test_segment_dataset` file for a test dataset of 1000 segment pairs from highway driving environment*
