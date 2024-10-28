@@ -109,12 +109,14 @@ def llm_assign_preferences(feature_pairs, goal, feature_names, model_name="llama
 
 def main():
     if len(sys.argv) < 3 or len(sys.argv) > 4:
-        print("command should be formatted as: python assign_preferences.py <input_file_name> <output_file_name> <optional: weights>, you only provided", len(sys.argv))
+        print("command should be formatted as: python assign_preferences.py <input_file_name> <output_file_name> <optional: modelname>, you only provided", len(sys.argv))
         sys.exit(1)
 
-    # read in file
+    # read inputs
     input_file_name = sys.argv[1]
     output_file_name = sys.argv[2]
+    model_name = sys.argv[3] if len(sys.argv) == 4 else "llama3-70b-8192"
+
     with open(input_file_name, 'rb') as f:
         pairs, feature_sums = pickle.load(f)
     print(f"done loading: dataset has {len(feature_sums)} pairs")
@@ -128,7 +130,8 @@ def main():
 
     # can switch this out as we vary inputs
     feature_names = ["car displacement (distance)","crashed"]
-    preferences = llm_assign_preferences(feature_sums, "to drive safely and efficiently across a highway", feature_names)
+    preferences = llm_assign_preferences(feature_sums, "to drive safely and efficiently across a highway", feature_names, model_name)
+    
     print("preferences found")
     print(preferences)
     with open(output_file_name, 'wb') as f:
