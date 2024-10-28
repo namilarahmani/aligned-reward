@@ -12,6 +12,7 @@ Implement feedback loop for autonomous reward design with LLMs, tuning reward fu
   - `find_feasible_weights(pairs, preferences)`: represents each preference as an inequality constraint and uses scipy linprog implementation to find a feasible set of weights (or identify if there is none)
   - `find_feasible_weight_space(pairs, preferences, test_weight=None)`: represents each preference as an inequality constraint and uses pycddlib double description implementation to convert the inequality matrix to a convex polyhedron representing the feasible space of weights (or identify if there is none). If there is a feasible weight space, checks if test_weight is contained in that space.
   - `check_and_remove_conflicts(pairs, preferences)`: Checks if feasible space exists then brute force identifies conflicts of up to 3 preferences.
+  - Some unit tests for these functions are defined in `unit_tests.py` which can be run using `python -m unittest unit_tests.py`
 - **5) Remove conflicts**: present conflicts to LLM stakeholder for resolution (or possibly consider addition of features to explain the conflicts)
   - to-do
  
