@@ -8,7 +8,8 @@ import google.api_core.exceptions
 
 def llm_assign_preferences(feature_pairs, goal, feature_names):
     """ 
-    assigns preferences based on  assigns preferences based on llm query on which segment is better
+    Original llm pref generation code - new one is in llm_assign_preferences_llama.py
+    -- Using gemini llm to assign preferences based on llm query on which segment is better 
        0 = first segment
        1 = second segment
        -1 = equally preferable
@@ -79,7 +80,7 @@ def main():
 
     # can switch this out as we vary inputs
     feature_names = ["car displacement (distance)","crashed"]
-    preferences = assign_preferences(feature_sums, "to drive safely and efficiently across a highway", feature_names)
+    preferences = llm_assign_preferences(feature_sums, "to drive safely and efficiently across a highway", feature_names)
     print("preferences found")
     print(preferences)
     with open(output_file_name, 'wb') as f:
