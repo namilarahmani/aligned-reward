@@ -2,8 +2,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from cdd import Matrix, Polyhedron, RepType
 from scipy.spatial import ConvexHull
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
-def visualize_polyhedron(poly, sample_points=False, num_points=25):
+def visualize_polyhedron(poly, sample_points=True, num_points=45):
     vertices = np.array([list(gen[1:]) for gen in poly.get_generators() if gen[0] == 1])
     rays = np.array([list(gen[1:]) for gen in poly.get_generators() if gen[0] == 0])
     
@@ -18,7 +19,7 @@ def visualize_polyhedron(poly, sample_points=False, num_points=25):
         
     dim = len(vertices[0])
     print("dimension is", dim)
-    
+    fig = plt.figure(figsize=(10, 8))
     if dim == 2:
         if len(vertices) >= 3:
             hull = ConvexHull(vertices)
@@ -56,10 +57,7 @@ def visualize_polyhedron(poly, sample_points=False, num_points=25):
         plt.show()
 
     elif dim == 3:
-        from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-        fig = plt.figure(figsize=(10, 8))
         ax = fig.add_subplot(111, projection='3d')
-        
         # plot vertices
         ax.scatter(vertices[:, 0], vertices[:, 1], vertices[:, 2],
                    color='red', s=50, label="Vertices")
@@ -131,18 +129,18 @@ def create_example_polyhedron():
     visualize_polyhedron(poly)
 
     # custom shape - define vertices and rays (first val is flag)
-    data = [
-        [1, 0, 0, 1],
-        [1, 1, 0, 2],
-        [1, 0, 1, 2],
-        [1, 1, 3, 2],
-        [0, 0, 1, 0]
-    ]
+    # data = [
+    #     [1, 0, 0, 1],
+    #     [1, 1, 0, 2],
+    #     [1, 0, 1, 2],
+    #     [1, 1, 3, 2],
+    #     [0, 0, 1, 0]
+    # ]
 
-    # make cdd matrix in GENERATOR representation:
-    mat = Matrix(data, number_type='fraction')
-    mat.rep_type = RepType.GENERATOR
-    poly = Polyhedron(mat)
-    visualize_polyhedron(poly, sample_points=False, num_points=50)
+    # # make cdd matrix in GENERATOR representation:
+    # mat = Matrix(data, number_type='fraction')
+    # mat.rep_type = RepType.GENERATOR
+    # poly = Polyhedron(mat)
+    # visualize_polyhedron(poly, sample_points=False, num_points=50)
 
 create_example_polyhedron()
