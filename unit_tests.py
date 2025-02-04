@@ -1,8 +1,8 @@
 import unittest
 import numpy as np
-from possible_subspace import find_feasible_weight_space, check_and_remove_conflicts
+from possible_subspace import find_feasible_weight_space, check_and_remove_conflicts, resolve_conflicts
 from assign_preferences import assign_preferences
-
+from llm_assign_preferences import assign_preferences_consistently, final_assign_preferences
 class TestPreferenceConsistency(unittest.TestCase):
     
     # size 1 features (number line) -----------------------------------------------
