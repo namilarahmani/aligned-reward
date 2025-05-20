@@ -9,7 +9,7 @@ import time
 import numpy as np
 from groq import Groq
 import sys
-from possible_subspace import check_and_remove_conflicts, resolve_conflicts, find_full_weight_space
+from possible_subspace import check_and_remove_conflicts, resolve_conflicts, find_full_weight_space, mod_check_and_remove_conflicts
 from active_learning import get_feasible_poly_with_expansion, compute_min_and_max_dot
 import volume
 # from visualize import visualize_polyhedron
@@ -249,7 +249,7 @@ def prefs_with_active_query_selection(
                     A_ub = np.array(A_ub, dtype=float) if A_ub else None
                     b_ub = np.array(b_ub, dtype=float) if b_ub else None
                     dim_w = A_ub.shape[1] if (A_ub is not None and len(A_ub) > 0) else 2
-                    all_pairs, preferences = check_and_remove_conflicts(all_pairs, preferences)
+                    all_pairs, preferences = mod_check_and_remove_conflicts(all_pairs, preferences, task_description, feature_names, binary_features)
                     result = linprog(c=[0]*dim_w, A_ub=A_ub, b_ub=b_ub, bounds=(None, None))
                     if result.success:
                         feasible_w = result.x

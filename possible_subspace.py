@@ -8,6 +8,7 @@ from itertools import combinations
 import cdd
 import matplotlib.pyplot as plt
 from groq import Groq
+import os
 
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.spatial import ConvexHull
@@ -269,12 +270,7 @@ def resolve_conflicts(conflicts,feature_sums,preferences):
                 try:
                     completion = client.chat.completions.create(
                         model="llama3-70b-8192",
-                        messages=[
-                            {
-                                "role": "user",
-                                "content": query
-                            }
-                        ],
+                        messages=[{"role": "user", "content": query}],
                         temperature=0,
                         max_tokens=10,
                         top_p=1,
@@ -289,9 +285,9 @@ def resolve_conflicts(conflicts,feature_sums,preferences):
 
                     if selected_option < 1 or selected_option > len(feature_sums):
                         raise ValueError(f"Selected option {selected_option} is out of range.")
-
-                    feature_sums = [pair for i, pair in enumerate(feature_sums) if i not in conflicts[selected_option]]
-                    preferences = [pref for i, pref in enumerate(preferences) if i not in conflicts[selected_option]]
+                    to_remove = conflict_set[selected_option - 1]
+                    feature_sums = [pair for i, pair in enumerate(feature_sums) if i not in to_remove]
+                    preferences = [pref for i, pref in enumerate(preferences) if i not in to_remove]
                     requests_made += 1
                     if requests_made >= REQUESTS_PER_MINUTE:
                         print(f"Reached {REQUESTS_PER_MINUTE} requests. Waiting for {WAIT_TIME} seconds...")
@@ -318,6 +314,125 @@ def resolve_conflicts(conflicts,feature_sums,preferences):
 
     return feature_sums,preferences
 
+from itertools import combinations
+from groq import Groq
+import numpy as np
+
+def mod_check_and_remove_conflicts(
+    pairs,
+    preferences,
+    task_description: str,
+    feature_names,
+    binary_features,
+    model_name: str = "llama3-70b-8192",
+    use_llm: bool = True
+):
+    """
+    find conflicts of up to size 3 in the given pairs and preferences, and resolve them by removing
+    """
+    if find_feasible_weight_space(pairs, preferences):
+        print("No conflicts detected.")
+        return pairs, preferences
+
+    # find all subsets of size 1,2,3 whose removal makes it feasible
+    n = len(preferences)
+    conflicts = []
+    for r in range(1, min(n, 4)):
+        for to_remove in combinations(range(n), r):
+            # skip any superset of an already‐found conflict
+            if any(set(prev).issubset(to_remove) for prev in conflicts):
+                continue
+
+            reduced_pairs = [p for i, p in enumerate(pairs) if i not in to_remove]
+            reduced_prefs = [pref for i, pref in enumerate(preferences) if i not in to_remove]
+
+            if find_feasible_weight_space(reduced_pairs, reduced_prefs):
+                conflicts.append(to_remove)
+
+        if len(conflicts) == 0:
+            print(f"No feasible solution exists even after removing all possible subsets of {r} preference(s).")
+            return [], []
+
+    print(f"Conflict can be resolved by removing any of the following subsets: {conflicts}")
+    return mod_resolve_conflicts(conflicts, pairs, preferences, task_description, feature_names, binary_features, model_name, use_llm)
+
+
+def mod_resolve_conflicts(
+    conflicts,
+    pairs,
+    preferences,
+    task_description,
+    feature_names,
+    binary_features,
+    model_name = "llama3-70b-8192",
+    use_llm = True
+):
+    """
+    same as resolve_conflicts but for varied tasks
+    """
+    # helper to turn a feature‐vector into a human‐readable listing
+    def describe(option_vals: np.ndarray) -> str:
+        parts = []
+        for name, val, is_bin in zip(feature_names, option_vals, binary_features):
+            if is_bin:
+                parts.append(f"{name}: {'yes' if val > 0.5 else 'no'}")
+            else:
+                parts.append(f"{name}: {round(float(val), 3)}")
+        return "; ".join(parts)
+
+    # build the prompt options
+    options_text = ""
+    for opt_i, subset in enumerate(conflicts, start=1):
+        options_text += f"Option {opt_i} (remove preferences at indices {list(subset)}):\n"
+        for idx in subset:
+            f1, f2 = pairs[idx]
+            options_text += (
+                f"  Preference {idx} → "
+                f"Option 1: {describe(f1)}; "
+                f"Option 2: {describe(f2)}\n"
+            )
+        options_text += "\n"
+
+    prompt = (
+        f"Goal: {task_description}.\n\n"
+        "The following sets of previously‐queried preferences each, if removed, "
+        "would restore a feasible weight region. Please select the option number "
+        "corresponding to the set you would like to remove to best satisfy the goal. "
+        "Return only a single number.\n\n"
+        f"{options_text}"
+    )
+
+    if not use_llm: # user choice
+        print(prompt)
+        while True:
+            choice = input(f"Your choice (1–{len(conflicts)}): ").strip()
+            if choice.isdigit() and 1 <= int(choice) <= len(conflicts):
+                selected = int(choice)
+                break
+            print("Invalid input. Please enter a valid option number.")
+    else: # llm choice
+        client = Groq(api_key='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')
+        completion = client.chat.completions.create(
+            model=model_name,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0,
+            max_tokens=10,
+            top_p=1
+        )
+        response = completion.choices[0].message.content.strip()
+        try:
+            selected = int(response)
+        except ValueError:
+            raise ValueError(f"Invalid response from LLM: {resp!r}")
+        if not (1 <= selected <= len(conflicts)):
+            raise ValueError(f"Selected option {selected} out of range.")
+
+    # remove the chosen subset
+    to_remove = conflicts[selected - 1]
+    new_pairs = [p for i, p in enumerate(pairs) if i not in to_remove]
+    new_prefs = [pref for i, pref in enumerate(preferences) if i not in to_remove]
+    print(f"Removed preferences at indices {to_remove}.")
+    return new_pairs, new_prefs
 
 def main():
     # read in data
